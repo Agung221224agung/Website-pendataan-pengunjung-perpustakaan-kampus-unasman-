@@ -1,0 +1,1463 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistem Pendataan Pengunjung Perpustakaan UNASMAN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+        .active-nav {
+            background-color: rgba(255, 255, 255, 0.1);
+            border-left: 4px solid white;
+        }
+        .page {
+            display: none;
+        }
+        .page.active {
+            display: block;
+        }
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px;
+            border-radius: 8px;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transform: translateY(-100px);
+            opacity: 0;
+            transition: all 0.3s ease-in-out;
+        }
+        .notification.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal.show {
+            display: flex;
+        }
+        .faculty-option {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-radius: 4px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        .faculty-option:hover {
+            background-color: #f0f9ff;
+        }
+        .faculty-option.selected {
+            background-color: #dbeafe;
+            border: 1px solid #93c5fd;
+        }
+        .faculty-icon {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin-right: 12px;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- Notification -->
+    <div id="notification" class="notification bg-green-500 text-white">
+        <div class="flex items-center">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            <span id="notification-message">Berhasil!</span>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Konfirmasi Hapus</h3>
+            <p class="text-gray-700 mb-6">Apakah Anda yakin ingin menghapus data pengunjung ini? Tindakan ini tidak dapat dibatalkan.</p>
+            <div class="flex justify-end space-x-3">
+                <button id="cancel-delete" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
+                    Batal
+                </button>
+                <button id="confirm-delete" class="px-4 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2">
+                    Hapus
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div id="add-user-modal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Tambah Pengguna Baru</h3>
+            <form id="add-user-form" class="space-y-4">
+                <div>
+                    <label for="user-name" class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                    <input type="text" id="user-name" name="user-name" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="user-username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                    <input type="text" id="user-username" name="user-username" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="user-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="user-email" name="user-email" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="user-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="user-password" name="user-password" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="user-role" class="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                    <select id="user-role" name="user-role" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="">Pilih Role</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Staff">Staff</option>
+                        <option value="Pustakawan">Pustakawan</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-3 pt-4">
+                    <button type="button" id="cancel-add-user" class="px-4 py-2 bg-gray-200 text-gray-800 font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-4 py-2 bg-blue-900 text-white font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        Simpan
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Faculty Selection Modal -->
+    <div id="faculty-modal" class="modal">
+        <div class="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Pilih Fakultas</h3>
+            <div class="space-y-2 mb-6">
+                <div class="faculty-option" data-value="FIKOM">
+                    <div class="faculty-icon bg-blue-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-medium">FIKOM</p>
+                        <p class="text-xs text-gray-500">Fakultas Ilmu Komputer</p>
+                    </div>
+                </div>
+                <div class="faculty-option" data-value="PERTANIAN">
+                    <div class="faculty-icon bg-green-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-medium">PERTANIAN</p>
+                        <p class="text-xs text-gray-500">Fakultas Pertanian</p>
+                    </div>
+                </div>
+                <div class="faculty-option" data-value="KESMAS">
+                    <div class="faculty-icon bg-red-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-medium">KESMAS</p>
+                        <p class="text-xs text-gray-500">Fakultas Kesehatan Masyarakat</p>
+                    </div>
+                </div>
+                <div class="faculty-option" data-value="FISIP">
+                    <div class="faculty-icon bg-purple-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-medium">FISIP</p>
+                        <p class="text-xs text-gray-500">Fakultas Ilmu Sosial dan Ilmu Politik</p>
+                    </div>
+                </div>
+                <div class="faculty-option" data-value="FKIP">
+                    <div class="faculty-icon bg-yellow-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path d="M12 14l9-5-9-5-9 5 9 5z" />
+                            <path d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-medium">FKIP</p>
+                        <p class="text-xs text-gray-500">Fakultas Keguruan dan Ilmu Pendidikan</p>
+                    </div>
+                </div>
+                <div class="faculty-option" data-value="FAI">
+                    <div class="faculty-icon bg-teal-600">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                        </svg>
+                    </div>
+                    <div>
+                        <p class="font-medium">FAI</p>
+                        <p class="text-xs text-gray-500">Fakultas Agama Islam</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button id="confirm-faculty" class="px-4 py-2 bg-blue-900 text-white font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                    Pilih
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-blue-900 text-white flex flex-col">
+            <div class="p-4 border-b border-blue-800">
+                <h1 class="text-xl font-bold">PERPUSTAKAAN UNASMAN</h1>
+            </div>
+            <nav class="flex-1 overflow-y-auto py-4">
+                <ul>
+                    <li>
+                        <a href="#" class="nav-link flex items-center px-6 py-3 hover:bg-blue-800 active-nav" data-target="beranda">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                            Beranda
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link flex items-center px-6 py-3 hover:bg-blue-800" data-target="daftar-masuk">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                            </svg>
+                            Daftar Masuk
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link flex items-center px-6 py-3 hover:bg-blue-800" data-target="admin">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Admin
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link flex items-center px-6 py-3 hover:bg-blue-800" data-target="data-pengunjung">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                            </svg>
+                            Data Pengunjung
+                        </a>
+                    </li>
+                    <li>
+                        <a href="#" class="nav-link flex items-center px-6 py-3 hover:bg-blue-800" data-target="laporan">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Laporan
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            <div class="p-4 border-t border-blue-800">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-blue-700 flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium" id="username-display">Tamu</p>
+                        <button id="login-button" class="text-xs text-blue-300 hover:text-white nav-link" data-target="login">Masuk</button>
+                        <button id="logout-button" class="hidden text-xs text-blue-300 hover:text-white">Keluar</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto">
+            <!-- Beranda Page -->
+            <div id="beranda" class="page active p-8">
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-blue-900 mb-4">Selamat Datang di Perpustakaan UNASMAN</h2>
+                    <p class="text-gray-600 mb-4">Sistem pendataan pengunjung perpustakaan kampus Universitas Al Asyariah Mandar.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                        <div class="bg-blue-100 p-6 rounded-lg shadow-sm">
+                            <div class="flex items-center">
+                                <div class="bg-blue-900 rounded-full p-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <h3 class="text-lg font-semibold text-gray-700">Total Pengunjung</h3>
+                                    <p class="text-2xl font-bold text-blue-900" id="total-visitors">1,245</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-blue-100 p-6 rounded-lg shadow-sm">
+                            <div class="flex items-center">
+                                <div class="bg-blue-900 rounded-full p-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <h3 class="text-lg font-semibold text-gray-700">Pengunjung Hari Ini</h3>
+                                    <p class="text-2xl font-bold text-blue-900" id="today-visitors">24</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-blue-100 p-6 rounded-lg shadow-sm">
+                            <div class="flex items-center">
+                                <div class="bg-blue-900 rounded-full p-3">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                                    </svg>
+                                </div>
+                                <div class="ml-4">
+                                    <h3 class="text-lg font-semibold text-gray-700">Total Buku</h3>
+                                    <p class="text-2xl font-bold text-blue-900">3,782</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-bold text-blue-900 mb-4">Statistik Pengunjung</h3>
+                    <div class="h-64">
+                        <canvas id="visitorChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Daftar Masuk Page -->
+            <div id="daftar-masuk" class="page p-8">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-2xl font-bold text-blue-900 mb-6">Daftar Masuk Pengunjung</h2>
+                    
+                    <form id="visitor-form" class="space-y-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="nama" class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                                <input type="text" id="nama" name="nama" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="nim" class="block text-sm font-medium text-gray-700 mb-1">NIM/NIK</label>
+                                <input type="text" id="nim" name="nim" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label for="fakultas-display" class="block text-sm font-medium text-gray-700 mb-1">Fakultas</label>
+                                <div class="relative">
+                                    <input type="text" id="fakultas-display" readonly placeholder="Pilih Fakultas" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer bg-white">
+                                    <input type="hidden" id="fakultas" name="fakultas" required>
+                                    <div class="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                        </svg>
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <label for="prodi" class="block text-sm font-medium text-gray-700 mb-1">Program Studi</label>
+                                <input type="text" id="prodi" name="prodi" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label for="tujuan" class="block text-sm font-medium text-gray-700 mb-1">Tujuan Kunjungan</label>
+                            <select id="tujuan" name="tujuan" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Pilih Tujuan</option>
+                                <option value="Membaca">Membaca</option>
+                                <option value="Meminjam Buku">Meminjam Buku</option>
+                                <option value="Mengembalikan Buku">Mengembalikan Buku</option>
+                                <option value="Mengerjakan Tugas">Mengerjakan Tugas</option>
+                                <option value="Penelitian">Penelitian</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                        </div>
+                        
+                        <div class="flex justify-end">
+                            <button type="submit" class="px-6 py-2 bg-blue-900 text-white font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                Daftar Masuk
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Admin Page -->
+            <div id="admin" class="page p-8">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h2 class="text-2xl font-bold text-blue-900 mb-6">Panel Admin</h2>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Kelola Pengguna</h3>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white border border-gray-200" id="users-table">
+                                <thead>
+                                    <tr>
+                                        <th class="py-3 px-4 bg-blue-900 text-white text-left">ID</th>
+                                        <th class="py-3 px-4 bg-blue-900 text-white text-left">Nama</th>
+                                        <th class="py-3 px-4 bg-blue-900 text-white text-left">Username</th>
+                                        <th class="py-3 px-4 bg-blue-900 text-white text-left">Email</th>
+                                        <th class="py-3 px-4 bg-blue-900 text-white text-left">Role</th>
+                                        <th class="py-3 px-4 bg-blue-900 text-white text-left">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-gray-200">
+                                        <td class="py-3 px-4">1</td>
+                                        <td class="py-3 px-4">Administrator</td>
+                                        <td class="py-3 px-4">admin</td>
+                                        <td class="py-3 px-4">admin@unasman.ac.id</td>
+                                        <td class="py-3 px-4">Admin</td>
+                                        <td class="py-3 px-4">
+                                            <button class="text-blue-600 hover:text-blue-900 mr-2">Edit</button>
+                                            <button class="text-red-600 hover:text-red-900">Hapus</button>
+                                        </td>
+                                    </tr>
+                                    <tr class="border-b border-gray-200">
+                                        <td class="py-3 px-4">2</td>
+                                        <td class="py-3 px-4">Pustakawan</td>
+                                        <td class="py-3 px-4">pustakawan</td>
+                                        <td class="py-3 px-4">pustakawan@unasman.ac.id</td>
+                                        <td class="py-3 px-4">Staff</td>
+                                        <td class="py-3 px-4">
+                                            <button class="text-blue-600 hover:text-blue-900 mr-2">Edit</button>
+                                            <button class="text-red-600 hover:text-red-900">Hapus</button>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="mt-4">
+                            <button id="add-user-button" class="px-4 py-2 bg-blue-900 text-white font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                                Tambah Pengguna
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-700 mb-4">Pengaturan Sistem</h3>
+                        <form class="space-y-4">
+                            <div>
+                                <label for="site-title" class="block text-sm font-medium text-gray-700 mb-1">Judul Situs</label>
+                                <input type="text" id="site-title" name="site-title" value="Perpustakaan UNASMAN" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="welcome-message" class="block text-sm font-medium text-gray-700 mb-1">Pesan Selamat Datang</label>
+                                <textarea id="welcome-message" name="welcome-message" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">Selamat datang di Perpustakaan Universitas Al Asyariah Mandar</textarea>
+                            </div>
+                            <div class="flex justify-end">
+                                <button type="submit" class="px-4 py-2 bg-blue-900 text-white font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                    Simpan Pengaturan
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Data Pengunjung Page -->
+            <div id="data-pengunjung" class="page p-8">
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h2 class="text-2xl font-bold text-blue-900">Data Pengunjung</h2>
+                        <div class="flex space-x-2">
+                            <button id="export-pdf" class="px-4 py-2 bg-red-600 text-white font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Ekspor PDF
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6 flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
+                        <div class="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0">
+                            <div>
+                                <label for="date-filter" class="block text-sm font-medium text-gray-700 mb-1">Filter Tanggal</label>
+                                <input type="date" id="date-filter" class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="faculty-filter" class="block text-sm font-medium text-gray-700 mb-1">Filter Fakultas</label>
+                                <select id="faculty-filter" class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">Semua Fakultas</option>
+                                    <option value="FIKOM">FIKOM</option>
+                                    <option value="PERTANIAN">PERTANIAN</option>
+                                    <option value="KESMAS">KESMAS</option>
+                                    <option value="FISIP">FISIP</option>
+                                    <option value="FKIP">FKIP</option>
+                                    <option value="FAI">FAI</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Pencarian</label>
+                            <input type="text" id="search" placeholder="Cari nama atau NIM..." class="px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 w-full">
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table id="visitor-table" class="min-w-full bg-white border border-gray-200">
+                            <thead>
+                                <tr>
+                                    <th class="py-3 px-4 bg-blue-900 text-white text-left">No</th>
+                                    <th class="py-3 px-4 bg-blue-900 text-white text-left">Tanggal</th>
+                                    <th class="py-3 px-4 bg-blue-900 text-white text-left">Waktu</th>
+                                    <th class="py-3 px-4 bg-blue-900 text-white text-left">Nama</th>
+                                    <th class="py-3 px-4 bg-blue-900 text-white text-left">NIM/NIK</th>
+                                    <th class="py-3 px-4 bg-blue-900 text-white text-left">Fakultas</th>
+                                    <th class="py-3 px-4 bg-blue-900 text-white text-left">Program Studi</th>
+                                    <th class="py-3 px-4 bg-blue-900 text-white text-left">Tujuan</th>
+                                    <th class="py-3 px-4 bg-blue-900 text-white text-left">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="visitor-table-body">
+                                <!-- Table rows will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div class="mt-6 flex justify-between items-center">
+                        <div class="text-sm text-gray-700" id="data-info">
+                            Menampilkan 1-3 dari 24 data
+                        </div>
+                        <div class="flex space-x-1">
+                            <button class="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-100">Sebelumnya</button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md bg-blue-900 text-white">1</button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-100">2</button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-100">3</button>
+                            <button class="px-3 py-1 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-100">Selanjutnya</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Laporan Page -->
+            <div id="laporan" class="page p-8">
+                <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+                    <h2 class="text-2xl font-bold text-blue-900 mb-6">Laporan Statistik Pengunjung</h2>
+                    
+                    <div class="mb-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-blue-100 p-6 rounded-lg shadow-sm">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">Total Pengunjung</h3>
+                            <p class="text-3xl font-bold text-blue-900" id="report-total-visitors">1,245</p>
+                            <p class="text-sm text-gray-600 mt-2">Sejak Januari 2023</p>
+                        </div>
+                        <div class="bg-blue-100 p-6 rounded-lg shadow-sm">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">Rata-rata Harian</h3>
+                            <p class="text-3xl font-bold text-blue-900">18</p>
+                            <p class="text-sm text-gray-600 mt-2">Pengunjung per hari</p>
+                        </div>
+                        <div class="bg-blue-100 p-6 rounded-lg shadow-sm">
+                            <h3 class="text-lg font-semibold text-gray-700 mb-2">Fakultas Terbanyak</h3>
+                            <p class="text-3xl font-bold text-blue-900">FIKOM</p>
+                            <p class="text-sm text-gray-600 mt-2">32% dari total pengunjung</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-8">
+                        <h3 class="text-xl font-semibold text-gray-700 mb-4">Statistik Bulanan</h3>
+                        <div class="h-64">
+                            <canvas id="monthlyChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Distribusi Fakultas</h3>
+                            <div class="h-64">
+                                <canvas id="facultyChart"></canvas>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-700 mb-4">Tujuan Kunjungan</h3>
+                            <div class="h-64">
+                                <canvas id="purposeChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-xl font-bold text-blue-900 mb-4">Unduh Laporan</h3>
+                    <div class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label for="report-type" class="block text-sm font-medium text-gray-700 mb-1">Jenis Laporan</label>
+                                <select id="report-type" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="daily">Harian</option>
+                                    <option value="weekly">Mingguan</option>
+                                    <option value="monthly">Bulanan</option>
+                                    <option value="yearly">Tahunan</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label for="start-date" class="block text-sm font-medium text-gray-700 mb-1">Tanggal Mulai</label>
+                                <input type="date" id="start-date" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                            <div>
+                                <label for="end-date" class="block text-sm font-medium text-gray-700 mb-1">Tanggal Akhir</label>
+                                <input type="date" id="end-date" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            </div>
+                        </div>
+                        <div class="flex justify-end">
+                            <button id="generate-report" class="px-6 py-2 bg-blue-900 text-white font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                Unduh Laporan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Login Page -->
+            <div id="login" class="page p-8">
+                <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-8">
+                    <h2 class="text-2xl font-bold text-blue-900 mb-6 text-center">Masuk</h2>
+                    
+                    <form id="login-form" class="space-y-6">
+                        <div>
+                            <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                            <input type="text" id="username" name="username" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <input type="password" id="password" name="password" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <input id="remember-me" name="remember-me" type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                                <label for="remember-me" class="ml-2 block text-sm text-gray-700">Ingat saya</label>
+                            </div>
+                            <a href="#" class="text-sm text-blue-600 hover:text-blue-800">Lupa password?</a>
+                        </div>
+                        <div>
+                            <button type="submit" class="w-full px-4 py-2 bg-blue-900 text-white font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                Masuk
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="mt-6 text-center">
+                        <p class="text-sm text-gray-600">Belum punya akun? <a href="#" class="text-blue-600 hover:text-blue-800 nav-link" data-target="register">Daftar</a></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Register Page -->
+            <div id="register" class="page p-8">
+                <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-8">
+                    <h2 class="text-2xl font-bold text-blue-900 mb-6 text-center">Daftar</h2>
+                    
+                    <form id="register-form" class="space-y-6">
+                        <div>
+                            <label for="reg-fullname" class="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap</label>
+                            <input type="text" id="reg-fullname" name="fullname" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="reg-email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                            <input type="email" id="reg-email" name="email" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="reg-username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                            <input type="text" id="reg-username" name="username" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="reg-password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                            <input type="password" id="reg-password" name="password" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="reg-confirm-password" class="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password</label>
+                            <input type="password" id="reg-confirm-password" name="confirm-password" required class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <button type="submit" class="w-full px-4 py-2 bg-blue-900 text-white font-medium rounded-md hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                                Daftar
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="mt-6 text-center">
+                        <p class="text-sm text-gray-600">Sudah punya akun? <a href="#" class="text-blue-600 hover:text-blue-800 nav-link" data-target="login">Masuk</a></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Global variables
+        let visitors = [
+            {
+                id: 1,
+                date: '2023-06-15',
+                time: '09:30',
+                name: 'Ahmad Fauzi',
+                nim: '19101001',
+                faculty: 'FIKOM',
+                program: 'Informatika',
+                purpose: 'Membaca'
+            },
+            {
+                id: 2,
+                date: '2023-06-15',
+                time: '10:15',
+                name: 'Siti Nurhaliza',
+                nim: '19201002',
+                faculty: 'FKIP',
+                program: 'Pendidikan Matematika',
+                purpose: 'Mengerjakan Tugas'
+            },
+            {
+                id: 3,
+                date: '2023-06-15',
+                time: '11:05',
+                name: 'Budi Santoso',
+                nim: '19301003',
+                faculty: 'PERTANIAN',
+                program: 'Agribisnis',
+                purpose: 'Meminjam Buku'
+            }
+        ];
+        
+        let users = [
+            {
+                id: 1,
+                name: 'Administrator',
+                username: 'admin',
+                email: 'admin@unasman.ac.id',
+                role: 'Admin'
+            },
+            {
+                id: 2,
+                name: 'Pustakawan',
+                username: 'pustakawan',
+                email: 'pustakawan@unasman.ac.id',
+                role: 'Staff'
+            }
+        ];
+        
+        let visitorIdToDelete = null;
+        let selectedFaculty = null;
+        
+        // Helper functions
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            const notificationMessage = document.getElementById('notification-message');
+            
+            notification.className = 'notification';
+            if (type === 'success') {
+                notification.classList.add('bg-green-500', 'text-white');
+            } else if (type === 'error') {
+                notification.classList.add('bg-red-500', 'text-white');
+            } else if (type === 'warning') {
+                notification.classList.add('bg-yellow-500', 'text-white');
+            }
+            
+            notificationMessage.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        function formatDate(date) {
+            const d = new Date(date);
+            const year = d.getFullYear();
+            const month = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        function getCurrentTime() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${hours}:${minutes}`;
+        }
+        
+        function updateVisitorTable() {
+            const tableBody = document.getElementById('visitor-table-body');
+            tableBody.innerHTML = '';
+            
+            visitors.forEach((visitor, index) => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-200';
+                
+                row.innerHTML = `
+                    <td class="py-3 px-4">${index + 1}</td>
+                    <td class="py-3 px-4">${visitor.date}</td>
+                    <td class="py-3 px-4">${visitor.time}</td>
+                    <td class="py-3 px-4">${visitor.name}</td>
+                    <td class="py-3 px-4">${visitor.nim}</td>
+                    <td class="py-3 px-4">${visitor.faculty}</td>
+                    <td class="py-3 px-4">${visitor.program}</td>
+                    <td class="py-3 px-4">${visitor.purpose}</td>
+                    <td class="py-3 px-4">
+                        <button class="text-blue-600 hover:text-blue-900 mr-2 edit-visitor" data-id="${visitor.id}">Edit</button>
+                        <button class="text-red-600 hover:text-red-900 delete-visitor" data-id="${visitor.id}">Hapus</button>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+            
+            // Add event listeners to delete buttons
+            document.querySelectorAll('.delete-visitor').forEach(button => {
+                button.addEventListener('click', function() {
+                    const id = parseInt(this.getAttribute('data-id'));
+                    visitorIdToDelete = id;
+                    document.getElementById('delete-modal').classList.add('show');
+                });
+            });
+            
+            // Update data info
+            document.getElementById('data-info').textContent = `Menampilkan 1-${visitors.length} dari ${visitors.length} data`;
+            
+            // Update counters
+            document.getElementById('total-visitors').textContent = (1245 + visitors.length - 3).toLocaleString();
+            document.getElementById('today-visitors').textContent = (24 + visitors.length - 3).toLocaleString();
+            document.getElementById('report-total-visitors').textContent = (1245 + visitors.length - 3).toLocaleString();
+        }
+        
+        function updateUsersTable() {
+            const tableBody = document.querySelector('#users-table tbody');
+            tableBody.innerHTML = '';
+            
+            users.forEach(user => {
+                const row = document.createElement('tr');
+                row.className = 'border-b border-gray-200';
+                
+                row.innerHTML = `
+                    <td class="py-3 px-4">${user.id}</td>
+                    <td class="py-3 px-4">${user.name}</td>
+                    <td class="py-3 px-4">${user.username}</td>
+                    <td class="py-3 px-4">${user.email}</td>
+                    <td class="py-3 px-4">${user.role}</td>
+                    <td class="py-3 px-4">
+                        <button class="text-blue-600 hover:text-blue-900 mr-2 edit-user" data-id="${user.id}">Edit</button>
+                        <button class="text-red-600 hover:text-red-900 delete-user" data-id="${user.id}">Hapus</button>
+                    </td>
+                `;
+                
+                tableBody.appendChild(row);
+            });
+        }
+        
+        function deleteVisitor(id) {
+            // Find the visitor to delete
+            const visitorIndex = visitors.findIndex(visitor => visitor.id === id);
+            if (visitorIndex !== -1) {
+                const visitorName = visitors[visitorIndex].name;
+                
+                // Remove the visitor from the array
+                visitors.splice(visitorIndex, 1);
+                
+                // Update the table
+                updateVisitorTable();
+                
+                // Show success notification
+                showNotification(`Data pengunjung ${visitorName} berhasil dihapus!`);
+            }
+        }
+        
+        function showFacultyModal() {
+            document.getElementById('faculty-modal').classList.add('show');
+            
+            // Add event listeners to faculty options
+            document.querySelectorAll('.faculty-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    // Remove selected class from all options
+                    document.querySelectorAll('.faculty-option').forEach(opt => {
+                        opt.classList.remove('selected');
+                    });
+                    
+                    // Add selected class to clicked option
+                    this.classList.add('selected');
+                    
+                    // Store selected faculty
+                    selectedFaculty = this.getAttribute('data-value');
+                });
+            });
+        }
+        
+        // Navigation
+        document.addEventListener('DOMContentLoaded', function() {
+            const navLinks = document.querySelectorAll('.nav-link');
+            const pages = document.querySelectorAll('.page');
+            
+            // Initialize visitor table
+            updateVisitorTable();
+            
+            navLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const target = this.getAttribute('data-target');
+                    
+                    // Hide all pages
+                    pages.forEach(page => {
+                        page.classList.remove('active');
+                    });
+                    
+                    // Show target page
+                    document.getElementById(target).classList.add('active');
+                    
+                    // Update active nav link
+                    navLinks.forEach(navLink => {
+                        navLink.classList.remove('active-nav');
+                    });
+                    
+                    // Only add active class to sidebar links
+                    if (this.closest('nav')) {
+                        this.classList.add('active-nav');
+                    }
+                });
+            });
+            
+            // Faculty Selection
+            const fakultasDisplay = document.getElementById('fakultas-display');
+            if (fakultasDisplay) {
+                fakultasDisplay.addEventListener('click', function() {
+                    showFacultyModal();
+                });
+            }
+            
+            // Confirm Faculty Selection
+            const confirmFaculty = document.getElementById('confirm-faculty');
+            if (confirmFaculty) {
+                confirmFaculty.addEventListener('click', function() {
+                    if (selectedFaculty) {
+                        document.getElementById('fakultas-display').value = selectedFaculty;
+                        document.getElementById('fakultas').value = selectedFaculty;
+                        document.getElementById('faculty-modal').classList.remove('show');
+                    } else {
+                        showNotification('Silakan pilih fakultas terlebih dahulu!', 'warning');
+                    }
+                });
+            }
+            
+            // Delete Modal
+            document.getElementById('cancel-delete').addEventListener('click', function() {
+                document.getElementById('delete-modal').classList.remove('show');
+                visitorIdToDelete = null;
+            });
+            
+            document.getElementById('confirm-delete').addEventListener('click', function() {
+                if (visitorIdToDelete !== null) {
+                    deleteVisitor(visitorIdToDelete);
+                    document.getElementById('delete-modal').classList.remove('show');
+                    visitorIdToDelete = null;
+                }
+            });
+            
+            // Add User Button
+            const addUserButton = document.getElementById('add-user-button');
+            if (addUserButton) {
+                addUserButton.addEventListener('click', function() {
+                    document.getElementById('add-user-modal').classList.add('show');
+                });
+            }
+            
+            // Cancel Add User
+            const cancelAddUser = document.getElementById('cancel-add-user');
+            if (cancelAddUser) {
+                cancelAddUser.addEventListener('click', function() {
+                    document.getElementById('add-user-modal').classList.remove('show');
+                    document.getElementById('add-user-form').reset();
+                });
+            }
+            
+            // Add User Form Submission
+            const addUserForm = document.getElementById('add-user-form');
+            if (addUserForm) {
+                addUserForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const name = document.getElementById('user-name').value;
+                    const username = document.getElementById('user-username').value;
+                    const email = document.getElementById('user-email').value;
+                    const role = document.getElementById('user-role').value;
+                    
+                    // Validate form
+                    if (!name || !username || !email || !role) {
+                        showNotification('Semua field harus diisi!', 'error');
+                        return;
+                    }
+                    
+                    // Create new user
+                    const newUser = {
+                        id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
+                        name: name,
+                        username: username,
+                        email: email,
+                        role: role
+                    };
+                    
+                    // Add to users array
+                    users.push(newUser);
+                    
+                    // Update users table
+                    updateUsersTable();
+                    
+                    // Close modal and reset form
+                    document.getElementById('add-user-modal').classList.remove('show');
+                    addUserForm.reset();
+                    
+                    // Show success notification
+                    showNotification(`Pengguna ${name} berhasil ditambahkan!`);
+                });
+            }
+            
+            // Close modals when clicking outside
+            window.addEventListener('click', function(e) {
+                const facultyModal = document.getElementById('faculty-modal');
+                const deleteModal = document.getElementById('delete-modal');
+                const addUserModal = document.getElementById('add-user-modal');
+                
+                if (e.target === facultyModal) {
+                    facultyModal.classList.remove('show');
+                }
+                
+                if (e.target === deleteModal) {
+                    deleteModal.classList.remove('show');
+                    visitorIdToDelete = null;
+                }
+                
+                if (e.target === addUserModal) {
+                    addUserModal.classList.remove('show');
+                    document.getElementById('add-user-form').reset();
+                }
+            });
+            
+            // Visitor Form Submission
+            const visitorForm = document.getElementById('visitor-form');
+            if (visitorForm) {
+                visitorForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const nama = document.getElementById('nama').value;
+                    const nim = document.getElementById('nim').value;
+                    const fakultas = document.getElementById('fakultas').value;
+                    const prodi = document.getElementById('prodi').value;
+                    const tujuan = document.getElementById('tujuan').value;
+                    
+                    // Validate form
+                    if (!nama || !nim || !fakultas || !prodi || !tujuan) {
+                        showNotification('Semua field harus diisi!', 'error');
+                        return;
+                    }
+                    
+                    // Create new visitor
+                    const newVisitor = {
+                        id: visitors.length > 0 ? Math.max(...visitors.map(v => v.id)) + 1 : 1,
+                        date: formatDate(new Date()),
+                        time: getCurrentTime(),
+                        name: nama,
+                        nim: nim,
+                        faculty: fakultas,
+                        program: prodi,
+                        purpose: tujuan
+                    };
+                    
+                    // Add to visitors array
+                    visitors.push(newVisitor);
+                    
+                    // Update table
+                    updateVisitorTable();
+                    
+                    // Show success notification
+                    showNotification(`Pengunjung ${nama} berhasil didaftarkan!`);
+                    
+                    // Clear form
+                    visitorForm.reset();
+                    document.getElementById('fakultas-display').value = '';
+                    
+                    // Navigate to Data Pengunjung page
+                    setTimeout(() => {
+                        document.querySelector('.nav-link[data-target="data-pengunjung"]').click();
+                    }, 1000);
+                });
+            }
+            
+            // Login Form Submission
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                loginForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const username = document.getElementById('username').value;
+                    const password = document.getElementById('password').value;
+                    
+                    // In a real application, you would validate credentials
+                    // For this demo, we'll just simulate a successful login
+                    document.getElementById('username-display').textContent = username;
+                    document.getElementById('login-button').classList.add('hidden');
+                    document.getElementById('logout-button').classList.remove('hidden');
+                    
+                    // Redirect to beranda
+                    document.querySelector('.nav-link[data-target="beranda"]').click();
+                    
+                    // Show success message
+                    showNotification(`Selamat datang, ${username}!`);
+                });
+            }
+            
+            // Register Form Submission
+            const registerForm = document.getElementById('register-form');
+            if (registerForm) {
+                registerForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const fullname = document.getElementById('reg-fullname').value;
+                    const email = document.getElementById('reg-email').value;
+                    const username = document.getElementById('reg-username').value;
+                    const password = document.getElementById('reg-password').value;
+                    const confirmPassword = document.getElementById('reg-confirm-password').value;
+                    
+                    // Validate passwords match
+                    if (password !== confirmPassword) {
+                        showNotification('Password tidak cocok!', 'error');
+                        return;
+                    }
+                    
+                    // In a real application, you would send this data to a server
+                    // For this demo, we'll just show a notification and redirect to login
+                    showNotification(`Pendaftaran berhasil untuk ${fullname}!`);
+                    
+                    // Redirect to login
+                    setTimeout(() => {
+                        document.querySelector('.nav-link[data-target="login"]').click();
+                    }, 1000);
+                    
+                    // Clear form
+                    registerForm.reset();
+                });
+            }
+            
+            // Logout Button
+            const logoutButton = document.getElementById('logout-button');
+            if (logoutButton) {
+                logoutButton.addEventListener('click', function() {
+                    document.getElementById('username-display').textContent = 'Tamu';
+                    document.getElementById('login-button').classList.remove('hidden');
+                    document.getElementById('logout-button').classList.add('hidden');
+                    
+                    // Show notification
+                    showNotification('Anda telah keluar dari sistem.');
+                    
+                    // Redirect to beranda
+                    document.querySelector('.nav-link[data-target="beranda"]').click();
+                });
+            }
+            
+            // Export PDF
+            const exportPdfButton = document.getElementById('export-pdf');
+            if (exportPdfButton) {
+                exportPdfButton.addEventListener('click', function() {
+                    // Create a simple PDF using jsPDF
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    
+                    // Add title
+                    doc.setFontSize(16);
+                    doc.text('Data Pengunjung Perpustakaan UNASMAN', 20, 20);
+                    
+                    // Add date
+                    doc.setFontSize(12);
+                    doc.text(`Tanggal: ${new Date().toLocaleDateString('id-ID')}`, 20, 30);
+                    
+                    // Prepare table data
+                    const tableData = visitors.map((visitor, index) => [
+                        index + 1,
+                        visitor.date,
+                        visitor.name,
+                        visitor.nim,
+                        visitor.faculty,
+                        visitor.purpose
+                    ]);
+                    
+                    // Add table
+                    doc.autoTable({
+                        startY: 40,
+                        head: [['No', 'Tanggal', 'Nama', 'NIM/NIK', 'Fakultas', 'Tujuan']],
+                        body: tableData,
+                    });
+                    
+                    // Save the PDF
+                    doc.save('data-pengunjung-perpustakaan.pdf');
+                    
+                    // Show notification
+                    showNotification('Data pengunjung berhasil diekspor ke PDF.');
+                });
+            }
+            
+            // Generate Report
+            const generateReportButton = document.getElementById('generate-report');
+            if (generateReportButton) {
+                generateReportButton.addEventListener('click', function() {
+                    const reportType = document.getElementById('report-type').value;
+                    const startDate = document.getElementById('start-date').value;
+                    const endDate = document.getElementById('end-date').value;
+                    
+                    // Validate dates
+                    if (!startDate || !endDate) {
+                        showNotification('Silakan pilih tanggal mulai dan tanggal akhir!', 'error');
+                        return;
+                    }
+                    
+                    // Create a simple PDF using jsPDF
+                    const { jsPDF } = window.jspdf;
+                    const doc = new jsPDF();
+                    
+                    // Add title
+                    doc.setFontSize(16);
+                    doc.text(`Laporan ${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Pengunjung Perpustakaan UNASMAN`, 20, 20);
+                    
+                    // Add date range
+                    doc.setFontSize(12);
+                    doc.text(`Periode: ${startDate} sampai ${endDate}`, 20, 30);
+                    
+                    // Add summary
+                    doc.text('Ringkasan:', 20, 40);
+                    doc.text(`Total Pengunjung: ${(1245 + visitors.length - 3).toLocaleString()}`, 30, 50);
+                    doc.text('Rata-rata Harian: 18', 30, 60);
+                    doc.text('Fakultas Terbanyak: FIKOM (32%)', 30, 70);
+                    
+                    // Add table
+                    doc.autoTable({
+                        startY: 80,
+                        head: [['Tanggal', 'Jumlah Pengunjung']],
+                        body: [
+                            ['2023-06-01', '22'],
+                            ['2023-06-02', '18'],
+                            ['2023-06-03', '15'],
+                            ['2023-06-04', '20'],
+                            ['2023-06-05', '25']
+                        ],
+                    });
+                    
+                    // Save the PDF
+                    doc.save(`laporan-${reportType}-pengunjung-perpustakaan.pdf`);
+                    
+                    // Show notification
+                    showNotification(`Laporan ${reportType} berhasil diunduh.`);
+                });
+            }
+            
+            // Initialize Charts
+            // Visitor Chart (Beranda)
+            const visitorChartCtx = document.getElementById('visitorChart');
+            if (visitorChartCtx) {
+                new Chart(visitorChartCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'],
+                        datasets: [{
+                            label: 'Jumlah Pengunjung',
+                            data: [150, 180, 220, 190, 240, 265],
+                            borderColor: '#1e3a8a',
+                            backgroundColor: 'rgba(30, 58, 138, 0.1)',
+                            tension: 0.3,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Monthly Chart (Laporan)
+            const monthlyChartCtx = document.getElementById('monthlyChart');
+            if (monthlyChartCtx) {
+                new Chart(monthlyChartCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun'],
+                        datasets: [{
+                            label: 'Jumlah Pengunjung',
+                            data: [150, 180, 220, 190, 240, 265],
+                            backgroundColor: '#1e3a8a'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Faculty Chart (Laporan)
+            const facultyChartCtx = document.getElementById('facultyChart');
+            if (facultyChartCtx) {
+                new Chart(facultyChartCtx, {
+                    type: 'pie',
+                    data: {
+                        labels: ['FIKOM', 'FKIP', 'PERTANIAN', 'KESMAS', 'FISIP', 'FAI'],
+                        datasets: [{
+                            data: [32, 25, 18, 15, 7, 3],
+                            backgroundColor: [
+                                '#1e3a8a',
+                                '#2563eb',
+                                '#3b82f6',
+                                '#60a5fa',
+                                '#93c5fd',
+                                '#bfdbfe'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+            
+            // Purpose Chart (Laporan)
+            const purposeChartCtx = document.getElementById('purposeChart');
+            if (purposeChartCtx) {
+                new Chart(purposeChartCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Membaca', 'Meminjam Buku', 'Mengembalikan Buku', 'Mengerjakan Tugas', 'Penelitian'],
+                        datasets: [{
+                            data: [40, 20, 15, 18, 7],
+                            backgroundColor: [
+                                '#1e3a8a',
+                                '#2563eb',
+                                '#3b82f6',
+                                '#60a5fa',
+                                '#93c5fd'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+            
+            // Search functionality
+            const searchInput = document.getElementById('search');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.toLowerCase();
+                    const tableRows = document.querySelectorAll('#visitor-table-body tr');
+                    
+                    tableRows.forEach(row => {
+                        const name = row.children[3].textContent.toLowerCase();
+                        const nim = row.children[4].textContent.toLowerCase();
+                        
+                        if (name.includes(searchTerm) || nim.includes(searchTerm)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
+            
+            // Faculty filter
+            const facultyFilter = document.getElementById('faculty-filter');
+            if (facultyFilter) {
+                facultyFilter.addEventListener('change', function() {
+                    const selectedFaculty = this.value.toLowerCase();
+                    const tableRows = document.querySelectorAll('#visitor-table-body tr');
+                    
+                    tableRows.forEach(row => {
+                        const faculty = row.children[5].textContent.toLowerCase();
+                        
+                        if (!selectedFaculty || faculty === selectedFaculty) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
+            
+            // Date filter
+            const dateFilter = document.getElementById('date-filter');
+            if (dateFilter) {
+                dateFilter.addEventListener('change', function() {
+                    const selectedDate = this.value;
+                    const tableRows = document.querySelectorAll('#visitor-table-body tr');
+                    
+                    tableRows.forEach(row => {
+                        const date = row.children[1].textContent;
+                        
+                        if (!selectedDate || date === selectedDate) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
+        });
+    </script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'964172b1d1fbf93b',t:'MTc1MzMzOTQ1Ni4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>
